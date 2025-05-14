@@ -5,6 +5,7 @@ use std::fmt;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -23,14 +24,24 @@ use crate::rt::Timer;
 /// The sender side of an established connection.
 pub struct SendRequest<B> {
     dispatch: dispatch::UnboundedSender<Request<B>, Response<IncomingBody>>,
+    settings: SyncedHttp2Settings,
 }
 
 impl<B> Clone for SendRequest<B> {
     fn clone(&self) -> SendRequest<B> {
         SendRequest {
             dispatch: self.dispatch.clone(),
+            settings: self.settings.clone(),
         }
     }
+}
+
+/// HTTP2 settings from Connection
+#[derive(Debug, Clone, Default)]
+pub struct SyncedHttp2Settings {
+    is_extended_connect_protocol_enabled: Arc<AtomicBool>,
+    current_max_send_streams: Arc<AtomicUsize>,
+    current_max_recv_streams: Arc<AtomicUsize>,
 }
 
 /// A future that processes all HTTP state for the IO object.
@@ -191,6 +202,37 @@ where
 impl<B> fmt::Debug for SendRequest<B> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("SendRequest").finish()
+    }
+}
+
+// ===== impl SyncedHttp2Settings
+
+impl SyncedHttp2Settings {
+    pub(crate) fn set_is_extended_connect_protocol_enabled(&self, val: bool) {
+        self.is_extended_connect_protocol_enabled.store(val, Ordering::Relaxed)
+    }
+
+    /// Returns whether the [extended CONNECT protocol][1] is enabled or not.
+    pub fn is_extended_connect_protocol_enabled(&self) -> bool {
+        self.is_extended_connect_protocol_enabled.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn set_current_max_send_streams(&self, val: usize) {
+        self.current_max_send_streams.store(val, Ordering::Relaxed)
+    }
+
+    /// Returns the current max send streams
+    pub fn current_max_send_streams(&self) -> usize {
+        self.current_max_send_streams.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn set_current_max_recv_streams(&self, val: usize) {
+        self.current_max_recv_streams.store(val, Ordering::Relaxed)
+    }
+
+    /// Returns the current max recv streams
+    pub fn current_max_recv_streams(&self) -> usize {
+        self.current_max_recv_streams.load(Ordering::Relaxed)
     }
 }
 
@@ -487,11 +529,14 @@ where
             trace!("client handshake HTTP/2");
 
             let (tx, rx) = dispatch::channel();
-            let h2 = proto::h2::client::handshake(io, rx, &opts.h2_builder, opts.exec, opts.timer)
+            let synced_settings = SyncedHttp2Settings::default();
+
+            let h2 = proto::h2::client::handshake(io, rx, &opts.h2_builder, opts.exec, opts.timer, synced_settings.clone())
                 .await?;
             Ok((
                 SendRequest {
                     dispatch: tx.unbound(),
+                    settings: synced_settings.clone(),
                 },
                 Connection {
                     inner: (PhantomData, h2),

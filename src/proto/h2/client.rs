@@ -7,7 +7,10 @@ use std::{
     time::Duration,
 };
 
-use crate::rt::{Read, Write};
+use crate::{
+    client::conn::http2::SyncedHttp2Settings,
+    rt::{Read, Write},
+};
 use bytes::Bytes;
 use futures_channel::mpsc::{Receiver, Sender};
 use futures_channel::{mpsc, oneshot};
@@ -147,6 +150,7 @@ pub(crate) async fn handshake<T, B, E>(
     config: &Config,
     mut exec: E,
     timer: Time,
+    synced_http_settings: SyncedHttp2Settings,
 ) -> crate::Result<ClientTask<B, E, T>>
 where
     T: Read + Write + Unpin,
@@ -198,6 +202,7 @@ where
         req_rx,
         fut_ctx: None,
         marker: PhantomData,
+        synced_http_settings,
     })
 }
 
@@ -430,6 +435,7 @@ where
     req_rx: ClientRx<B>,
     fut_ctx: Option<FutCtx<B>>,
     marker: PhantomData<T>,
+    synced_http_settings: SyncedHttp2Settings,
 }
 
 impl<B, E, T> ClientTask<B, E, T>
@@ -652,6 +658,16 @@ where
 
             match self.req_rx.poll_recv(cx) {
                 Poll::Ready(Some((req, cb))) => {
+                    // update synced http2 settings
+                    self.synced_http_settings
+                        .set_is_extended_connect_protocol_enabled(
+                            self.h2_tx.is_extended_connect_protocol_enabled(),
+                        );
+                    self.synced_http_settings
+                        .set_current_max_send_streams(self.h2_tx.current_max_send_streams());
+                    self.synced_http_settings
+                        .set_current_max_recv_streams(self.h2_tx.current_max_recv_streams());
+
                     // check that future hasn't been canceled already
                     if cb.is_canceled() {
                         trace!("request callback is canceled");
