@@ -24,7 +24,8 @@ use crate::rt::Timer;
 /// The sender side of an established connection.
 pub struct SendRequest<B> {
     dispatch: dispatch::UnboundedSender<Request<B>, Response<IncomingBody>>,
-    settings: SyncedHttp2Settings,
+    /// HTTP2 settings from Connection
+    pub settings: SyncedHttp2Settings,
 }
 
 impl<B> Clone for SendRequest<B> {
