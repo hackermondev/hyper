@@ -637,7 +637,17 @@ where
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         loop {
             match ready!(self.h2_tx.poll_ready(cx)) {
-                Ok(()) => (),
+                Ok(()) => {
+                    // update synced http2 settings
+                    self.synced_http_settings
+                        .set_is_extended_connect_protocol_enabled(
+                            self.h2_tx.is_extended_connect_protocol_enabled(),
+                        );
+                    self.synced_http_settings
+                        .set_current_max_send_streams(self.h2_tx.current_max_send_streams());
+                    self.synced_http_settings
+                        .set_current_max_recv_streams(self.h2_tx.current_max_recv_streams());
+                }
                 Err(err) => {
                     self.ping.ensure_not_timed_out()?;
                     return if err.reason() == Some(::h2::Reason::NO_ERROR) {
