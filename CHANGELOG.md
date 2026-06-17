@@ -1,3 +1,115 @@
+### v1.10.1 (2026-05-29)
+
+
+#### Bug Fixes
+
+* **http1:** fix busy loop when peer half-closes and open body (#4086) ([c6cb906f](https://github.com/hyperium/hyper/commit/c6cb906fdcbc3df64fc3fb613be57430e0387e48), closes [#4085](https://github.com/hyperium/hyper/issues/4085))
+
+
+## v1.10.0 (2026-05-27)
+
+
+#### Bug Fixes
+
+* **http1:**
+  * send error when dispatcher is dropped mid-body (#4069) ([b7a679ba](https://github.com/hyperium/hyper/commit/b7a679bad5e17d106b4b54835153af4e72027f82), closes [#3995](https://github.com/hyperium/hyper/issues/3995), [#4016](https://github.com/hyperium/hyper/issues/4016))
+  * fix reading large bodies on 32-bit systems (#4056) ([b12f6525](https://github.com/hyperium/hyper/commit/b12f6525432e7fbe80b749fec26f8ed7723006fc), closes [#4055](https://github.com/hyperium/hyper/issues/4055))
+  * fix rare missed write wakeup on connections v2 ([743a3ba0](https://github.com/hyperium/hyper/commit/743a3ba0706fde95e2095ad42ffefe219d807117))
+* **http2:**
+  * do not reserve capacity before body data is available (#4061) ([99f24345](https://github.com/hyperium/hyper/commit/99f243450268cfc8125ff232e0b7de016a1dce5b), closes [#4003](https://github.com/hyperium/hyper/issues/4003))
+  * reading trailers shouldn't propagate `NO_ERROR` from early response (#3998) ([e5ad96b1](https://github.com/hyperium/hyper/commit/e5ad96b1c511b568f086100538586231628b1eab))
+
+
+#### Features
+
+* **http2:**
+  * add  `reset_stream_duration()` client option (#4068) ([156a6f6a](https://github.com/hyperium/hyper/commit/156a6f6aaacdc782861a4cab23ab3940a029d6ac), closes [#2599](https://github.com/hyperium/hyper/issues/2599))
+  * Add 'header_table_size()' method to server builder (#4062) ([6c9182c4](https://github.com/hyperium/hyper/commit/6c9182c4e566e716d23e7b54ce2c75e064a9213a))
+
+
+## v1.9.0 (2026-03-31)
+
+
+#### Bug Fixes
+
+* **ffi:** validate null pointers before dereferencing in request/response functions (#4038 ([28e73ccd](https://github.com/hyperium/hyper/commit/28e73ccd230cff8d7e5b5880ce2ab5fb8ced36be))
+* **http1:**
+  * allow keep-alive for chunked requests with trailers (#4043) ([7211ec25](https://github.com/hyperium/hyper/commit/7211ec25eff2ea6ee783817fee2a221d4eb2ed03), closes [#4044](https://github.com/hyperium/hyper/issues/4044))
+  * use case-insensitive matching for trailer fields (#4011) ([3b344cac](https://github.com/hyperium/hyper/commit/3b344cac9f96a9365409086dde51d06aa797ffc3), closes [#4010](https://github.com/hyperium/hyper/issues/4010))
+  * use httparse config for Servers (#4002) ([bcb8ec57](https://github.com/hyperium/hyper/commit/bcb8ec576619650d3388604e6c246829e7be133a), closes [#3923](https://github.com/hyperium/hyper/issues/3923))
+* **http2:**
+  * cancel sending client request body on response future drop (#4042) ([5b17a69e](https://github.com/hyperium/hyper/commit/5b17a69ebcf969471c1a19b25ed2cb81299d1be6), closes [#4040](https://github.com/hyperium/hyper/issues/4040))
+  * non-utf8 char in Connection header may cause panic when calling to_str (#4019) ([c36ca8a5](https://github.com/hyperium/hyper/commit/c36ca8a5c50e4a05a78aa3e158f13456ee674fb1))
+
+
+#### Features
+
+* **client:**
+  * expose HTTP/2 current max stream count (#4026) ([d51cb715](https://github.com/hyperium/hyper/commit/d51cb71569bbca7927b3828ef11e3bec4fa97eb4))
+  * add HTTP/2 `max_local_error_reset_streams` option (#4021) ([57787459](https://github.com/hyperium/hyper/commit/577874591cae246dfb2d72d7140d794ac2fa605a))
+* **error:** add 'Error::is_parse_version_h2' method ([393c77c7](https://github.com/hyperium/hyper/commit/393c77c71138ff6e33d7089deac770a3f3f1436b))
+* **http1:** add UpgradeableConnection::into_parts ([e21205cf](https://github.com/hyperium/hyper/commit/e21205cfe4066edbcddc56150d963dabbc7d3ec4))
+
+
+### v1.8.1 (2025-11-13)
+
+
+#### Bug Fixes
+
+* **http1:** fix consuming extra CPU from previous change (#3977) ([4492f31e](https://github.com/hyperium/hyper/commit/4492f31e9429c34166da5a069c00b65be20e4a02))
+
+
+## v1.8.0 (2025-11-11)
+
+
+#### Bug Fixes
+
+* **http1:** fix rare missed write wakeup on connections (#3952) ([2377b893](https://github.com/hyperium/hyper/commit/2377b893f6e64ca9878e4f25d1472b96baa7e3ea))
+* **http2:** fix internals of HTTP/2 CONNECT upgrades (#3967) ([58e0e7dc](https://github.com/hyperium/hyper/commit/58e0e7dc70612117ccdc40da395922f791cb273a), closes [#3966](https://github.com/hyperium/hyper/issues/3966))
+
+
+#### Features
+
+* **rt:** add `Timer::now()` method to allow overriding the instant returned (#3965) ([5509ebe6](https://github.com/hyperium/hyper/commit/5509ebe6156e32d4f8986fafa25c2918a30005be))
+
+
+#### Breaking Changes
+
+* The HTTP/2 client connection no longer allows an executor
+  that can not spawn itself.
+
+  This was an oversight originally. The client connection will now include spawning
+  a future that keeps a copy of the executor to spawn other futures. Thus, if it is
+  `!Send`, it needs to spawn `!Send` futures. The likelihood of executors that match
+  the previously allowed behavior should be very remote.
+
+  There is also technically a semver break in here, which is that the
+  `Http2ClientConnExec` trait no longer dyn-compatible, because it now expects to
+  be `Clone`. This should not break usage of the `conn` builder, because it already
+  separately had `E: Clone` bounds. If someone were using `dyn Http2ClientConnExec`,
+  that will break. However, there is no purpose for doing so, and it is not usable
+  otherwise, since the trait only exists to propagate bounds into hyper. Thus, the
+  breakage should not affect anyone.
+ ([58e0e7dc](https://github.com/hyperium/hyper/commit/58e0e7dc70612117ccdc40da395922f791cb273a))
+
+
+## v1.7.0 (2025-08-18)
+
+
+#### Bug Fixes
+
+* **server:** improve caching accuracy of Date header (#3887) ([436cadd1](https://github.com/hyperium/hyper/commit/436cadd1ac08a9508a46f550e03281db9f2fee97))
+
+
+#### Features
+
+* **client:**
+  * add a `TrySendError::error()` method (#3885) ([efa0b269](https://github.com/hyperium/hyper/commit/efa0b26958386ffaf646e6d9a3150ca5041162a3))
+  * add a `TrySendError::message()` method (#3884) ([03fd6aff](https://github.com/hyperium/hyper/commit/03fd6aff88c99a0842bb2e578a4993a432c03049))
+* **error:** add `Error::is_shutdown()` (#3863) ([b8affd8a](https://github.com/hyperium/hyper/commit/b8affd8a2ee5d77dec0c32050a7234e4f2f3751b), closes [#2745](https://github.com/hyperium/hyper/issues/2745))
+* **server:** add `allow_multiple_spaces_in_request_line_delimiters` http1 builder method (#3929) ([9749184f](https://github.com/hyperium/hyper/commit/9749184f8a21c387e404d628aceb992f0bf93e49))
+
+
 ## v1.6.0 (2025-01-28)
 
 
